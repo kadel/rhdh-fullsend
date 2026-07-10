@@ -8,8 +8,9 @@ propagate to each consuming repo.
 
 | Blueprint | rhdh-plugins | rhdh-overlays | rhdh-agentic |
 |-----------|:---:|:---:|:---:|
-| `scripts/pre-fix-rebase.sh` | yes | yes | - |
+| `scripts/pre-fix-rebase.sh` | yes | yes | yes |
 | `env/rhdh-toolchain.env` | yes | - | yes |
+| `env/yarn-proxy.env` | yes | - | yes |
 | `policies/code.yaml` | yes | - | yes |
 
 ## How to sync
