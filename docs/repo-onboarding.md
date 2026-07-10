@@ -145,7 +145,7 @@ gh run view <run-id> --repo <org>/<repo> --log
 
 | Repo | Status | Install method | Notes |
 |------|--------|----------------|-------|
-| `rhdh-agentic` | Live (2026-05-20) | `fullsend admin install` | Custom review agent with OpenSpec skill |
+| `rhdh-agentic` | Reinstalled (2026-07-10) | `fullsend github setup` v0.30.0 | Vanilla scaffold, customizations being added incrementally. See [agentic-reinstall.md](agentic-reinstall.md) |
 | `rhdh-plugins` | Live (2026-06-02) | Manual | Review scoped to `workspaces/scorecard/`, auth-gated slash commands |
 | `rhdh-plugin-export-overlays` | WIF configured, PR pending | Manual | Custom workspace-review skill, scoped to `backstage-plugins-for-aws` |
 
