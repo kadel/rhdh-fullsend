@@ -4,7 +4,14 @@ COMPOSE := $(if $(shell command -v podman 2>/dev/null),podman compose,docker com
 
 .PHONY: fetch up down local viewer help
 
+# Auto-recover Podman VM if it died (macOS libkrun drops on sleep)
+define ensure-podman
+	$(if $(shell command -v podman 2>/dev/null),\
+		podman info >/dev/null 2>&1 || podman machine start 2>/dev/null || true)
+endef
+
 define start-viewer
+	$(ensure-podman)
 	$(COMPOSE) -f docker-compose.fullsend.yaml up -d
 	@echo "AgentsView: http://$$(hostname).local:$${AGENTSVIEW_PORT:-8081}"
 endef

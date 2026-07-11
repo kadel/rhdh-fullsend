@@ -5,21 +5,53 @@ set -euo pipefail
 # organise them so AgentsView can ingest them as Claude sessions.
 #
 # Usage:
-#   ./fetch-fullsend-runs.sh                          # default repos
-#   ./fetch-fullsend-runs.sh org/repo1 org/repo2      # custom repos
+#   ./fetch-fullsend-runs.sh                          # default repos (7 days)
+#   ./fetch-fullsend-runs.sh --since 30d              # last 30 days
+#   ./fetch-fullsend-runs.sh --all                    # all available artifacts
+#   ./fetch-fullsend-runs.sh org/repo1 org/repo2      # custom repos (7 days)
+#   ./fetch-fullsend-runs.sh --since 14d org/repo1    # custom repos + window
 #
 # Prerequisites: gh (authenticated), jq
 #
 # Directory layout produced (matches AgentsView Claude discovery):
-#   runs/<repo>_<agent>/<run-id>_issue-<N>_<transcript>.jsonl
+#   runs/<repo>/<run-id>_issue-<N>_<transcript>.jsonl
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUNS_DIR="${RUNS_DIR:-${SCRIPT_DIR}/../runs}"
 
+# Parse flags
+SINCE_DAYS=7
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --since)
+      SINCE_DAYS="${2%d}"  # strip trailing 'd' if present
+      shift 2
+      ;;
+    --all)
+      SINCE_DAYS=0
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
 if [ $# -gt 0 ]; then
   REPOS=("$@")
 else
-  REPOS=("redhat-developer/rhdh-agentic" "redhat-developer/rhdh-plugins")
+  REPOS=("redhat-developer/rhdh-agentic" "redhat-developer/rhdh-plugins" "redhat-developer/rhdh-plugin-export-overlays")
+fi
+
+# Compute cutoff date
+if [ "$SINCE_DAYS" -gt 0 ]; then
+  if date -v-1d >/dev/null 2>&1; then
+    SINCE_DATE=$(date -v-${SINCE_DAYS}d -u +%Y-%m-%dT00:00:00Z)
+  else
+    SINCE_DATE=$(date -u -d "${SINCE_DAYS} days ago" +%Y-%m-%dT00:00:00Z)
+  fi
+else
+  SINCE_DATE=""
 fi
 
 for cmd in gh jq; do
@@ -30,6 +62,11 @@ mkdir -p "$RUNS_DIR"
 
 echo "Fetching fullsend runs -> $RUNS_DIR"
 echo "Repos: ${REPOS[*]}"
+if [ -n "$SINCE_DATE" ]; then
+  echo "Since: $SINCE_DATE (${SINCE_DAYS}d)"
+else
+  echo "Since: all available"
+fi
 echo
 
 total_fetched=0
@@ -39,9 +76,13 @@ for repo in "${REPOS[@]}"; do
   repo_name=$(basename "$repo")
   echo "--- $repo ---"
 
-  # Fetch all artifacts with automatic pagination
+  # Fetch artifacts with automatic pagination, filtered by date window
+  since_filter=""
+  if [ -n "$SINCE_DATE" ]; then
+    since_filter="| select(.created_at >= \"$SINCE_DATE\")"
+  fi
   artifacts=$(gh api --paginate "repos/${repo}/actions/artifacts?per_page=100" \
-    --jq '[.artifacts[] | select(.name | startswith("fullsend-")) | select(.expired == false) | {id:.id, name:.name, run_id:.workflow_run.id, created:.created_at}]' 2>/dev/null \
+    --jq "[.artifacts[] | select(.name | startswith(\"fullsend-\")) | select(.expired == false) ${since_filter} | {id:.id, name:.name, run_id:.workflow_run.id, created:.created_at}]" 2>/dev/null \
     | jq -s 'add // []') || {
     echo "  [skip] could not list artifacts"
     continue
@@ -57,7 +98,7 @@ for repo in "${REPOS[@]}"; do
     agent_name=${art_name#fullsend-}
 
     # Skip if we already have files for this run+agent
-    project_dir="${repo_name}_${agent_name}"
+    project_dir="${repo_name}"
     if compgen -G "${RUNS_DIR}/${project_dir}/${run_id}_*.jsonl" >/dev/null 2>&1; then
       total_skipped=$((total_skipped + 1))
       continue
@@ -80,11 +121,44 @@ for repo in "${REPOS[@]}"; do
       continue
     fi
 
-    # Extract issue number from artifact directory name: agent-<type>-<issue>-<hash>
-    issue_num=$(find "$tmpdir" -mindepth 1 -maxdepth 1 -type d -name 'agent-*' \
-      | head -1 | xargs basename 2>/dev/null \
-      | grep -oE 'agent-[a-z]+-([0-9]+)' | grep -oE '[0-9]+$' || true)
-    [ -z "$issue_num" ] && issue_num="unknown"
+    # Default entity type from agent name; overridden by run-summary.json if available
+    case "$agent_name" in
+      review|fix) entity_type="pr" ;;
+      *)          entity_type="issue" ;;
+    esac
+
+    # Find the agent run directory (agent-<type>-<id>-<hash>/)
+    agent_dir=$(find "$tmpdir" -mindepth 1 -maxdepth 1 -type d -name 'agent-*' | head -1)
+    if [ -z "$agent_dir" ]; then
+      echo "    (no agent directory in artifact)"
+      rm -rf "$tmpdir"
+      continue
+    fi
+
+    # Extract metadata from run-summary.json (canonical source)
+    summary_file="${agent_dir}/run-summary.json"
+    if [ -f "$summary_file" ]; then
+      work_item_url=$(jq -r '."fullsend.work_item_id" // empty' "$summary_file")
+      if [ -n "$work_item_url" ]; then
+        issue_num=$(echo "$work_item_url" | grep -oE '[0-9]+$' || true)
+        # Derive entity type from URL path
+        case "$work_item_url" in
+          */pull/*) entity_type="pr" ;;
+          *)        entity_type="issue" ;;
+        esac
+      fi
+      cost_usd=$(jq -r '.metrics.total_cost_usd // empty' "$summary_file")
+      duration_s=$(jq -r '(.duration_ms // 0) / 1000 | floor' "$summary_file")
+      num_turns=$(jq -r '.metrics.num_turns // empty' "$summary_file")
+    fi
+    [ -z "${issue_num:-}" ] && issue_num="unknown"
+
+    # Extract agent result (triage summary, review comment, etc.)
+    result_file=$(find "$agent_dir" -name 'agent-result.json' -type f | head -1)
+    result_comment=""
+    if [ -n "$result_file" ] && [ -f "$result_file" ]; then
+      result_comment=$(jq -r '.comment // empty' "$result_file")
+    fi
 
     dest_dir="${RUNS_DIR}/${project_dir}"
 
@@ -93,14 +167,27 @@ for repo in "${REPOS[@]}"; do
       found=true
       mkdir -p "$dest_dir"
 
-      dest_file="${dest_dir}/${run_id}_issue-${issue_num}_$(basename "$jsonl")"
+      dest_file="${dest_dir}/${run_id}_${entity_type}-${issue_num}_$(basename "$jsonl")"
 
-      # Prepend a context message so the session shows repo/issue/agent in AgentsView
+      # Build header: agent setting + title message
+      agent_setting_line=$(jq -nc \
+        --arg agent "$agent_name" \
+        --arg ts "$created" \
+        '{type: "agent-setting", agentSetting: ("fs-" + $agent), timestamp: $ts}')
+
+      # Title line with cost and duration when available
+      title_extra=""
+      [ -n "${cost_usd:-}" ] && title_extra=" · \$${cost_usd}"
+      [ -n "${duration_s:-}" ] && title_extra="${title_extra} · ${duration_s}s"
+      [ -n "${num_turns:-}" ] && title_extra="${title_extra} · ${num_turns} turns"
+
       meta_line=$(jq -nc \
-        --arg repo "$repo" \
+        --arg entity "$entity_type" \
         --arg issue "$issue_num" \
+        --arg run_id "$run_id" \
         --arg agent "$agent_name" \
         --arg conclusion "$conclusion" \
+        --arg extra "$title_extra" \
         --arg url "$run_url" \
         --arg ts "$created" \
         --arg cwd "/fullsend/${project_dir}" \
@@ -108,12 +195,36 @@ for repo in "${REPOS[@]}"; do
           type: "user",
           timestamp: $ts,
           message: {
-            content: ("[Fullsend: \($agent)] \($repo)#\($issue) (\($conclusion))\n\($url)")
+            content: ("\($entity) #\($issue) - \($run_id) [\($agent), \($conclusion)\($extra)]\n\($url)")
           },
           cwd: $cwd
         }')
 
-      { echo "$meta_line"; cat "$jsonl"; } > "$dest_file"
+      # Build footer: agent result as an assistant message
+      result_line=""
+      if [ -n "$result_comment" ]; then
+        result_line=$(jq -nc \
+          --arg comment "$result_comment" \
+          --arg ts "$created" \
+          '{
+            type: "assistant",
+            message: {
+              role: "assistant",
+              type: "message",
+              content: [{ type: "text", text: $comment }],
+              stop_reason: "end_turn"
+            },
+            timestamp: $ts
+          }')
+      fi
+
+      # Assemble: header + transcript + result
+      {
+        echo "$agent_setting_line"
+        echo "$meta_line"
+        cat "$jsonl"
+        [ -n "$result_line" ] && echo "$result_line"
+      } > "$dest_file"
       echo "    -> ${project_dir}/$(basename "$dest_file")"
       total_fetched=$((total_fetched + 1))
     done < <(find "$tmpdir" -name '*.jsonl' -path '*/transcripts/*' -print0)
