@@ -264,76 +264,82 @@ for repo in "${REPOS[@]}"; do
 
     dest_dir="${RUNS_DIR}/${project_dir}"
 
+    # Build header once per run (shared across transcripts)
+    agent_setting_line=$(jq -nc \
+      --arg agent "$agent_name" \
+      --arg ts "$created" \
+      '{type: "agent-setting", agentSetting: ("fs-" + $agent), timestamp: $ts}')
+
+    title_extra=""
+    [ -n "${cost_usd:-}" ] && title_extra=" · \$${cost_usd}"
+    [ -n "${duration_s:-}" ] && title_extra="${title_extra} · ${duration_s}s"
+    [ -n "${num_turns:-}" ] && title_extra="${title_extra} · ${num_turns} turns"
+
+    meta_line=$(jq -nc \
+      --arg entity "$entity_type" \
+      --arg issue "$issue_num" \
+      --arg run_id "$run_id" \
+      --arg agent "$agent_name" \
+      --arg conclusion "$conclusion" \
+      --arg extra "$title_extra" \
+      --arg url "$run_url" \
+      --arg ts "$created" \
+      --arg cwd "/fullsend/${project_dir}" \
+      '{
+        type: "user",
+        timestamp: $ts,
+        message: {
+          content: ("\($agent) \($entity) #\($issue) - run \($run_id) [\($conclusion)\($extra)]\n\($url)")
+        },
+        cwd: $cwd
+      }')
+
+    result_line=""
+    if [ -n "$result_comment" ]; then
+      result_line=$(jq -nc \
+        --arg comment "$result_comment" \
+        --arg ts "$created" \
+        '{
+          type: "assistant",
+          message: {
+            role: "assistant",
+            type: "message",
+            content: [{ type: "text", text: $comment }],
+            stop_reason: "end_turn"
+          },
+          timestamp: $ts
+        }')
+    fi
+
+    prompt_line=$(build_prompt_line "$agent_name" "$created" "$repo_claude_md" "$repo_agents_md" || true)
+
     found=false
     while IFS= read -r -d '' jsonl; do
       found=true
       mkdir -p "$dest_dir"
 
-      dest_file="${dest_dir}/${run_id}_${entity_type}-${issue_num}_$(basename "$jsonl")"
+      local_name=$(basename "$jsonl")
+      dest_file="${dest_dir}/${run_id}_${entity_type}-${issue_num}_${local_name}"
 
-      # Build header: agent setting + title message
-      agent_setting_line=$(jq -nc \
-        --arg agent "$agent_name" \
-        --arg ts "$created" \
-        '{type: "agent-setting", agentSetting: ("fs-" + $agent), timestamp: $ts}')
-
-      # Title line with cost and duration when available
-      title_extra=""
-      [ -n "${cost_usd:-}" ] && title_extra=" · \$${cost_usd}"
-      [ -n "${duration_s:-}" ] && title_extra="${title_extra} · ${duration_s}s"
-      [ -n "${num_turns:-}" ] && title_extra="${title_extra} · ${num_turns} turns"
-
-      meta_line=$(jq -nc \
-        --arg entity "$entity_type" \
-        --arg issue "$issue_num" \
-        --arg run_id "$run_id" \
-        --arg agent "$agent_name" \
-        --arg conclusion "$conclusion" \
-        --arg extra "$title_extra" \
-        --arg url "$run_url" \
-        --arg ts "$created" \
-        --arg cwd "/fullsend/${project_dir}" \
-        '{
-          type: "user",
-          timestamp: $ts,
-          message: {
-            content: ("\($agent) \($entity) #\($issue) - run \($run_id) [\($conclusion)\($extra)]\n\($url)")
-          },
-          cwd: $cwd
-        }')
-
-      # Build footer: agent result as an assistant message
-      result_line=""
-      if [ -n "$result_comment" ]; then
-        result_line=$(jq -nc \
-          --arg comment "$result_comment" \
-          --arg ts "$created" \
-          '{
-            type: "assistant",
-            message: {
-              role: "assistant",
-              type: "message",
-              content: [{ type: "text", text: $comment }],
-              stop_reason: "end_turn"
-            },
-            timestamp: $ts
-          }')
-      fi
-
-      # Reconstruct system prompt (silent no-op when SCAFFOLD_DIR is unset)
-      prompt_line=$(build_prompt_line "$agent_name" "$created" "$repo_claude_md" "$repo_agents_md" || true)
-
-      # Assemble: header + prompt + transcript + result
-      {
-        echo "$agent_setting_line"
-        echo "$meta_line"
-        [ -n "$prompt_line" ] && echo "$prompt_line"
-        cat "$jsonl"
-        [ -n "$result_line" ] && echo "$result_line"
-      } > "$dest_file"
+      case "$local_name" in
+        *-agent-a*)
+          # Subagent transcript — copy as-is (AgentsView groups under parent)
+          cp "$jsonl" "$dest_file"
+          ;;
+        *)
+          # Main session — inject headers, prompt, and result
+          {
+            echo "$agent_setting_line"
+            echo "$meta_line"
+            [ -n "$prompt_line" ] && echo "$prompt_line"
+            cat "$jsonl"
+            [ -n "$result_line" ] && echo "$result_line"
+          } > "$dest_file"
+          ;;
+      esac
       echo "    -> ${project_dir}/$(basename "$dest_file")"
       total_fetched=$((total_fetched + 1))
-    done < <(find "$tmpdir" -name '*.jsonl' -not -name '*-agent-a*' -path '*/transcripts/*' -print0)
+    done < <(find "$tmpdir" -name '*.jsonl' -path '*/transcripts/*' -print0)
 
     if [ "$found" = "false" ]; then
       echo "    (no transcripts in artifact)"
