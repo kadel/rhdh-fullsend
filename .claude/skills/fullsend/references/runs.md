@@ -53,9 +53,10 @@ cd agentsview && ./scripts/fetch-fullsend-runs.sh
 The script:
 - Paginates through all GitHub Actions artifacts matching `fullsend-*`
 - Skips already-downloaded runs (idempotent)
-- Extracts transcript JSONLs from artifact archives
-- Injects a metadata header with repo, issue, agent, and run URL
-- Organizes into `runs/<repo>_<agent>/` directories
+- Extracts main session transcript (skips subagent `*-agent-a*` files)
+- Injects metadata header (`agent entity #N - run ID [conclusion · cost · duration · turns]`)
+- Reconstructs agent system prompt from scaffold sources when `FULLSEND_SCAFFOLD_DIR` is set
+- Organizes into `runs/<repo>/` directories
 
 Custom repos can be passed as arguments:
 ```bash
@@ -63,6 +64,24 @@ Custom repos can be passed as arguments:
 ```
 
 Default repos: `redhat-developer/rhdh-agentic`, `redhat-developer/rhdh-plugins`.
+
+### System prompt reconstruction
+
+When `FULLSEND_SCAFFOLD_DIR` is set, `fetch-fullsend-runs.sh` reconstructs each agent's
+effective system prompt and injects it as a synthetic user message (visible as the first
+chat message in AgentsView). The prompt is assembled from:
+
+- `agents/<name>.md` — agent definition
+- `harness/<name>.yaml` → `skills/*/SKILL.md` — skills referenced by the harness
+- `AGENTS.md` — from target repo (via `gh api`) or scaffold fallback
+- `CLAUDE.md` — from target repo (via `gh api`); bridge pointer injected when repo has AGENTS.md but no CLAUDE.md
+
+```bash
+FULLSEND_SCAFFOLD_DIR=/path/to/fullsend/internal/scaffold/fullsend-repo \
+  ./scripts/fetch-fullsend-runs.sh
+```
+
+If unset, prompt reconstruction is silently skipped — backwards compatible.
 
 ### up
 
@@ -116,11 +135,11 @@ cd agentsview && make down
 GitHub Actions artifacts (fullsend-*)       Local fullsend runs (--output-dir)
   │                                           │
   ▼  fetch-fullsend-runs.sh                   ▼  import-local-run.sh
-  │                                           │
+  │  + prompt reconstruction                  │
   ▼                                           ▼
 agentsview/runs/                            agentsview/runs-local/
-  rhdh-plugins_review/*.jsonl                 local_triage/*.jsonl
-  rhdh-agentic_code/*.jsonl                   local_my-prs/*.jsonl
+  rhdh-plugins/*.jsonl                        local_triage/*.jsonl
+  rhdh-agentic/*.jsonl                        local_my-prs/*.jsonl
   │                                           │
   │  (make up)                                │  (make local)
   ▼                                           ▼
@@ -129,7 +148,7 @@ docker-compose.fullsend.yaml
   │
   ▼
 AgentsView container
-  → http://localhost:8081
+  → http://<hostname>:8081
   → FTS search, analytics, cost tracking
 ```
 

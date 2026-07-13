@@ -18,6 +18,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUNS_DIR="${RUNS_DIR:-${SCRIPT_DIR}/../runs}"
+SCAFFOLD_DIR="${FULLSEND_SCAFFOLD_DIR:-}"
 
 # Parse flags
 SINCE_DAYS=7
@@ -60,6 +61,99 @@ done
 
 mkdir -p "$RUNS_DIR"
 
+# --- System prompt reconstruction ---
+# Assembles the agent's effective system prompt from scaffold sources and
+# returns a JSONL line that AgentsView renders as the first chat message.
+_scaffold_warned=false
+
+build_prompt_line() {
+  local agent_name="$1" ts="$2" repo_claude_md="$3" repo_agents_md="$4"
+
+  if [ -z "$SCAFFOLD_DIR" ]; then
+    if [ "$_scaffold_warned" = false ]; then
+      echo "  [info] FULLSEND_SCAFFOLD_DIR not set — skipping prompt reconstruction" >&2
+      _scaffold_warned=true
+    fi
+    return 0
+  fi
+
+  local sections=()
+
+  # 1. Agent definition
+  local agent_file="${SCAFFOLD_DIR}/agents/${agent_name}.md"
+  if [ -f "$agent_file" ]; then
+    sections+=("## Agent Definition\n\n$(cat "$agent_file")")
+  fi
+
+  # 2. Project instructions (CLAUDE.md + AGENTS.md)
+  local project_section=""
+  if [ -n "$repo_claude_md" ]; then
+    project_section="### CLAUDE.md\n\n${repo_claude_md}"
+  fi
+
+  local agents_md_content="$repo_agents_md"
+  if [ -z "$agents_md_content" ] && [ -f "${SCAFFOLD_DIR}/AGENTS.md" ]; then
+    agents_md_content="$(cat "${SCAFFOLD_DIR}/AGENTS.md")"
+  fi
+  if [ -n "$agents_md_content" ]; then
+    [ -n "$project_section" ] && project_section="${project_section}\n\n"
+    project_section="${project_section}### AGENTS.md\n\n${agents_md_content}"
+  fi
+
+  # Inject bridge pointer when repo has AGENTS.md but no CLAUDE.md
+  if [ -z "$repo_claude_md" ] && [ -n "$agents_md_content" ]; then
+    local bridge="Project rules and instructions live in [AGENTS.md](AGENTS.md). Read that file now — it is the single source of truth for all agent-facing guidance in this repo."
+    project_section="### CLAUDE.md (bridge)\n\n${bridge}\n\n${project_section}"
+  fi
+
+  if [ -n "$project_section" ]; then
+    sections+=("## Project Instructions\n\n${project_section}")
+  fi
+
+  # 3. Skills from harness YAML
+  local harness_file="${SCAFFOLD_DIR}/harness/${agent_name}.yaml"
+  if [ -f "$harness_file" ]; then
+    local skills_section=""
+    while IFS= read -r skill_path; do
+      local skill_name
+      skill_name=$(basename "$skill_path")
+      local skill_file="${SCAFFOLD_DIR}/${skill_path}/SKILL.md"
+      if [ -f "$skill_file" ]; then
+        [ -n "$skills_section" ] && skills_section="${skills_section}\n\n---\n\n"
+        skills_section="${skills_section}### ${skill_name}\n\n$(cat "$skill_file")"
+      fi
+    done < <(grep -E '^\s*- skills/' "$harness_file" | sed 's/^[[:space:]]*- //')
+
+    if [ -n "$skills_section" ]; then
+      sections+=("## Skills\n\n${skills_section}")
+    fi
+  fi
+
+  if [ ${#sections[@]} -eq 0 ]; then
+    return 0
+  fi
+
+  local body
+  body=$(printf '%s' "${sections[0]}")
+  local idx
+  for ((idx=1; idx < ${#sections[@]}; idx++)); do
+    body=$(printf '%s\n\n---\n\n%s' "$body" "${sections[$idx]}")
+  done
+
+  local prompt_content
+  prompt_content=$(printf '📋 System Prompt (reconstructed)\n\n%b' "$body")
+
+  local tmpfile
+  tmpfile=$(mktemp)
+  printf '%s' "$prompt_content" > "$tmpfile"
+
+  jq -nc --rawfile content "$tmpfile" \
+    --arg ts "$ts" \
+    '{type: "user", timestamp: $ts, message: {content: $content}}'
+
+  rm -f "$tmpfile"
+}
+
 echo "Fetching fullsend runs -> $RUNS_DIR"
 echo "Repos: ${REPOS[*]}"
 if [ -n "$SINCE_DATE" ]; then
@@ -75,6 +169,14 @@ total_skipped=0
 for repo in "${REPOS[@]}"; do
   repo_name=$(basename "$repo")
   echo "--- $repo ---"
+
+  # Cache CLAUDE.md / AGENTS.md for this repo (one API call each)
+  repo_claude_md=""
+  repo_agents_md=""
+  if [ -n "$SCAFFOLD_DIR" ]; then
+    repo_claude_md=$(gh api "repos/${repo}/contents/CLAUDE.md" --jq '.content' 2>/dev/null | base64 -d 2>/dev/null || true)
+    repo_agents_md=$(gh api "repos/${repo}/contents/AGENTS.md" --jq '.content' 2>/dev/null | base64 -d 2>/dev/null || true)
+  fi
 
   # Fetch artifacts with automatic pagination, filtered by date window
   since_filter=""
@@ -195,7 +297,7 @@ for repo in "${REPOS[@]}"; do
           type: "user",
           timestamp: $ts,
           message: {
-            content: ("\($entity) #\($issue) - \($run_id) [\($agent), \($conclusion)\($extra)]\n\($url)")
+            content: ("\($agent) \($entity) #\($issue) - run \($run_id) [\($conclusion)\($extra)]\n\($url)")
           },
           cwd: $cwd
         }')
@@ -218,16 +320,20 @@ for repo in "${REPOS[@]}"; do
           }')
       fi
 
-      # Assemble: header + transcript + result
+      # Reconstruct system prompt (silent no-op when SCAFFOLD_DIR is unset)
+      prompt_line=$(build_prompt_line "$agent_name" "$created" "$repo_claude_md" "$repo_agents_md" || true)
+
+      # Assemble: header + prompt + transcript + result
       {
         echo "$agent_setting_line"
         echo "$meta_line"
+        [ -n "$prompt_line" ] && echo "$prompt_line"
         cat "$jsonl"
         [ -n "$result_line" ] && echo "$result_line"
       } > "$dest_file"
       echo "    -> ${project_dir}/$(basename "$dest_file")"
       total_fetched=$((total_fetched + 1))
-    done < <(find "$tmpdir" -name '*.jsonl' -path '*/transcripts/*' -print0)
+    done < <(find "$tmpdir" -name '*.jsonl' -not -name '*-agent-a*' -path '*/transcripts/*' -print0)
 
     if [ "$found" = "false" ]; then
       echo "    (no transcripts in artifact)"
