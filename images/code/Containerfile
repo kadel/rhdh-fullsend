@@ -4,6 +4,7 @@
 # rhdh-plugins monorepo:
 #   - corepack enabled with yarn pre-activated (avoids 10-15 min
 #     bootstrap inside read-only /usr sandbox)
+#   - Playwright CLI + Chromium for trace analysis during E2E failure debugging
 #   - Node.js is already in the base image (installed by Claude Code)
 #
 # Yarn is available on PATH immediately — no runtime corepack setup needed.
@@ -42,6 +43,27 @@ RUN mkdir -p "$COREPACK_HOME" \
     && corepack prepare yarn@4.12.0 --activate \
     && yarn --version \
     && chmod -R 777 "$COREPACK_HOME"
+
+# ---------------------------------------------------------------------------
+# Playwright + Chromium — trace analysis for E2E failure debugging.
+#
+# Most trace CLI commands (actions, requests, console, errors) are pure
+# Node.js JSON parsing. But `trace snapshot` and `trace screenshot` need
+# a real headless Chromium to render the frozen DOM, run accessibility
+# tree queries, and capture screenshots.
+#
+# PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 during npm install prevents the
+# automatic download — we use `npx playwright install chromium --with-deps`
+# explicitly so system dependencies (libs for headless Chrome) are also
+# installed via apt.
+ARG PLAYWRIGHT_VERSION=1.61.1
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers
+RUN npm install -g "playwright@${PLAYWRIGHT_VERSION}" \
+    && mkdir -p "${PLAYWRIGHT_BROWSERS_PATH}" \
+    && npx playwright install chromium --with-deps \
+    && npx playwright --version \
+    && chmod -R 777 "${PLAYWRIGHT_BROWSERS_PATH}"
 
 # ---------------------------------------------------------------------------
 # openspec CLI — spec-driven development tooling.
