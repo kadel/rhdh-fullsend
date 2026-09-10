@@ -10,38 +10,54 @@ for the RHDH fullsend setup.
 | GCP project ID | `rhdh-sidekick-167988` |
 | GCP project number | `189673402608` |
 | Vertex AI region | `us-east5` |
-| WIF pool | `fullsend-pool` (ACTIVE) |
+| WIF pools | `fullsend-pool`, `fullsend-inference` (both ACTIVE) |
 | IAM admin group | `rhdh-sidekick@redhat.com` |
+| Project role | **Owner** (via `group:rhdh-sidekick@redhat.com`) |
 
 The project lives under `IT Public Cloud > Sandbox > Customers` in the GCP
-org hierarchy. The admin group has `iam.workloadIdentityPoolAdmin`,
-`iam.serviceAccountAdmin`, and `iam.serviceAccountKeyAdmin` — sufficient to
-self-provision WIF providers and service accounts without fullsend team
-involvement.
+org hierarchy. The admin group has Owner, which includes all permissions
+needed to manage WIF, IAM, and Model Garden.
 
-**Conditional IAM restriction:** The `projectIamAdmin` role on this project
-is restricted to granting only `roles/aiplatform.user`:
+### IAM incident 2026-09-09
 
-```
-expression: api.getAttribute('iam.googleapis.com/modifiedGrantsByRole',
-  []).hasOnly(['roles/aiplatform.user'])
-```
+An Ansible/AAP automation (`aap-access-sa@utility-project-468319`) ran
+`SetIamPolicy` (full replace, not merge) on `rhdh-sidekick-167988` at
+12:59 UTC, overwriting the project policy with only the Owner binding.
+This removed `roles/aiplatform.user` from all Fullsend WIF principals.
 
-This means you cannot grant yourself additional roles or enable APIs. All
-changes beyond `aiplatform.user` must go through IT (ServiceNow ticket).
+Bindings were restored on 2026-09-10 using `add-iam-policy-binding`
+(which merges, not replaces). To prevent recurrence, IT/AAP must be told
+to use `add-iam-policy-binding` or read-modify-write with etag checks
+instead of `set-iam-policy`.
 
-## WIF providers
+## WIF pools and providers
 
-Each repo gets its own WIF provider, scoped via `attribute-condition` to
-that specific repository.
+Two pools exist. Each repo gets its own OIDC provider scoped via
+`attribute-condition`.
 
-### Current providers
+### Pools
+
+| Pool | Providers | Created by |
+|------|-----------|------------|
+| `fullsend-pool` | 3 (manually provisioned) | Team |
+| `fullsend-inference` | ~49 (auto-provisioned) | `fullsend admin install` |
+
+### fullsend-pool providers
 
 | Provider | Repo scope | State |
 |----------|-----------|-------|
 | `gh-redhat-developer-rhdh-agentic` | `redhat-developer/rhdh-agentic` | ACTIVE |
 | `gh-redhat-developer-rhdh-plugins` | `redhat-developer/rhdh-plugins` | ACTIVE |
 | `gh-rhdeveloper-plugin-export` | `redhat-developer/rhdh-plugin-export-overlays` | ACTIVE |
+
+The `fullsend-inference` pool has providers for most `redhat-developer/*`
+and `rhdh-parasol/*` repos. List them with:
+
+```bash
+gcloud iam workload-identity-pools providers list \
+  --location=global --workload-identity-pool=fullsend-inference \
+  --project=rhdh-sidekick-167988 --format="table(name.basename(), attributeCondition)"
+```
 
 ### Creating a new WIF provider
 
@@ -72,16 +88,19 @@ Omitting the second audience causes an `audience mismatch` error at the
 "Setup GCP" step in the workflow. The `fullsend admin install` CLI sets
 both automatically; manual provider creation must include both.
 
-### IAM binding
+### IAM bindings
 
-The existing `aiplatform.user` binding covers all `redhat-developer` repos
-via the `attribute.repository_owner` principal set:
+Both pools have org-level `aiplatform.user` bindings for both orgs:
 
-```
-principalSet://iam.googleapis.com/projects/189673402608/locations/global/workloadIdentityPools/fullsend-pool/attribute.repository_owner/redhat-developer
-```
+| Pool | Org | Principal set |
+|------|-----|---------------|
+| `fullsend-pool` | `redhat-developer` | `principalSet://.../fullsend-pool/attribute.repository_owner/redhat-developer` |
+| `fullsend-pool` | `rhdh-parasol` | `principalSet://.../fullsend-pool/attribute.repository_owner/rhdh-parasol` |
+| `fullsend-inference` | `redhat-developer` | `principalSet://.../fullsend-inference/attribute.repository_owner/redhat-developer` |
+| `fullsend-inference` | `rhdh-parasol` | `principalSet://.../fullsend-inference/attribute.repository_owner/rhdh-parasol` |
 
-No per-repo IAM binding is needed after the initial setup.
+No per-repo IAM binding is needed — the org-level principal sets cover all
+repos automatically.
 
 ## Service accounts
 
