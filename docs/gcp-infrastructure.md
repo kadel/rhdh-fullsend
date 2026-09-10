@@ -102,6 +102,32 @@ Both pools have org-level `aiplatform.user` bindings for both orgs:
 No per-repo IAM binding is needed — the org-level principal sets cover all
 repos automatically.
 
+## Mint configuration
+
+The mint URL is stored as a GitHub Actions variable (`FULLSEND_MINT_URL`)
+on each repo, not hardcoded in the workflow. The workflow references it via
+`${{ vars.FULLSEND_MINT_URL }}`.
+
+| Repo | Mint URL |
+|------|----------|
+| `redhat-developer/rhdh-agentic` | `https://mint.fullsend.sh` |
+| `redhat-developer/rhdh-plugins` | `https://mint.fullsend.sh` |
+| `redhat-developer/rhdh-plugin-export-overlays` | `https://mint.fullsend.sh` |
+
+Switched from private mint (`https://fullsend-mint-gljhbkcloq-uc.a.run.app`)
+to public mint on 2026-09-10.
+
+To change the mint URL on a repo:
+
+```bash
+gh variable set FULLSEND_MINT_URL --body "https://mint.fullsend.sh" --repo <org>/<repo>
+```
+
+The `repos.yaml` fleet manifest also stores `mint_url`. When running
+`fullsend repos install -f repos.yaml`, it sets this variable on each repo
+automatically. Direct `gh variable set` is equivalent and takes effect
+immediately.
+
 ## Service accounts
 
 For local agent runs (not CI). Run `/fullsend help setup` for the full local setup guide.
