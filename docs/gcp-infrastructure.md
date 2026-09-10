@@ -9,7 +9,7 @@ for the RHDH fullsend setup.
 |-------|-------|
 | GCP project ID | `rhdh-sidekick-167988` |
 | GCP project number | `189673402608` |
-| Vertex AI region | `us-east5` |
+| Fullsend GCP region | `global` (SDK routing; Vertex AI resolves internally) |
 | WIF pool | `fullsend-inference` (ACTIVE) |
 | IAM admin group | `rhdh-sidekick@redhat.com` |
 | Project role | **Owner** (via `group:rhdh-sidekick@redhat.com`) |
@@ -29,6 +29,27 @@ Bindings were restored on 2026-09-10 using `add-iam-policy-binding`
 (which merges, not replaces). To prevent recurrence, IT/AAP must be told
 to use `add-iam-policy-binding` or read-modify-write with etag checks
 instead of `set-iam-policy`.
+
+## Model Garden
+
+Models are enabled at the project level via the GCP Model Garden console.
+Once enabled, they are available to all principals with `roles/aiplatform.user`
+— i.e. all ~52 WIF-enabled repos across both orgs.
+
+| Model | Status | Verified |
+|-------|--------|----------|
+| Opus 4.6 (`claude-opus-4-6`) | Enabled | 2026-09-10 (triage agent, issue #143) |
+| Sonnet 4.6 (`claude-sonnet-4-6`) | Enabled | — |
+| Haiku 4.6 (`claude-haiku-4-6`) | Enabled | — |
+
+To enable additional models, go to
+[Model Garden](https://console.cloud.google.com/agent-platform/model-garden)
+with Owner credentials and fill in the publisher form (see
+`fullsend-ai/internal-docs/getting-inference.md` for the required fields).
+
+Model access cannot be verified via `gcloud` CLI or raw REST calls with
+user credentials — it only works through WIF-federated credentials used by
+the Fullsend SDK. Use a smoke-test issue to confirm end-to-end inference.
 
 ## Fleet vs. WIF-enabled repos
 
@@ -111,11 +132,13 @@ on each repo, not hardcoded in the workflow. The workflow references it via
 | Repo | Mint URL |
 |------|----------|
 | `redhat-developer/rhdh-agentic` | `https://mint.fullsend.sh` |
+| `redhat-developer/rhdh-cli` | `https://mint.fullsend.sh` |
 | `redhat-developer/rhdh-plugins` | `https://mint.fullsend.sh` |
 | `redhat-developer/rhdh-plugin-export-overlays` | `https://mint.fullsend.sh` |
 
-Switched from private mint (`https://fullsend-mint-gljhbkcloq-uc.a.run.app`)
-to public mint on 2026-09-10.
+All repos (including ~52 WIF-enabled repos in both `redhat-developer` and
+`rhdh-parasol` orgs) use public mint. Switched from private mint
+(`https://fullsend-mint-gljhbkcloq-uc.a.run.app`) on 2026-09-10.
 
 To change the mint URL on a repo:
 
