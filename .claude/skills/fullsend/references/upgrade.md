@@ -54,8 +54,8 @@ fullsend --version
 In `repos.yaml`, set `github.fullsend_ref` to the target tag (e.g. `v0.37.0`).
 Open a PR in **this** repo (`rhdh-fullsend`). Do not push to `main`.
 
-Keep `github.mint_mode: private` and the self-hosted `mint_url`. Do not let
-setup/install fall through to `https://mint.fullsend.sh`.
+The fleet uses public mint (`https://mint.fullsend.sh`). Verify `mint_url`
+in `repos.yaml` stays set to that after the upgrade.
 
 ### 4. Converge target repos (PRs only)
 
@@ -113,8 +113,8 @@ Watch the run. If triage succeeds, close the issue.
 
 ## Known gotchas
 
-1. **Self-hosted mint.** Manifest `mint_mode` must stay `private` with the GCP
-   mint URL. `github setup` without `--mint-url` writes `mint.fullsend.sh`.
+1. **Public mint.** Manifest `mint_url` must stay `https://mint.fullsend.sh`.
+   `github setup` without `--mint-url` defaults to this, which is correct.
 2. **Config-targeting flags rewrite `config.yaml`.** `--runtime`, `--agents`,
    `--mint-url`, `--inference-*` re-serialize the overlay (comments lost,
    agents kept). Prefer `repos install` over `github setup` for upgrades.
