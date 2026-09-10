@@ -30,6 +30,23 @@ Bindings were restored on 2026-09-10 using `add-iam-policy-binding`
 to use `add-iam-policy-binding` or read-modify-write with etag checks
 instead of `set-iam-policy`.
 
+## Fleet vs. WIF-enabled repos
+
+There are two levels of fullsend integration:
+
+| Level | Count | What it means |
+|-------|-------|---------------|
+| **WIF-enabled** | ~52 | Has a WIF provider → *can* use Vertex AI. Created by `fullsend admin install`. |
+| **Fleet-managed** | 4 | Listed in `repos.yaml` → centrally upgraded, version-pinned, scaffold-synced. |
+
+Fleet-managed repos (see `repos.yaml`):
+- `redhat-developer/rhdh-agentic`
+- `redhat-developer/rhdh-cli`
+- `redhat-developer/rhdh-plugins`
+- `redhat-developer/rhdh-plugin-export-overlays`
+
+To onboard a new repo into the fleet, use `/fullsend onboard <org>/<repo>`.
+
 ## WIF pool and providers
 
 All repos use a single pool (`fullsend-inference`). Each repo gets its own
