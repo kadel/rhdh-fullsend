@@ -19,5 +19,6 @@ github:
   fullsend_ref: v0.41.0
   repos:
     - name: redhat-developer/rhdh-agentic
+    - name: redhat-developer/rhdh-cli
     - name: redhat-developer/rhdh-plugins
     - name: redhat-developer/rhdh-plugin-export-overlays
