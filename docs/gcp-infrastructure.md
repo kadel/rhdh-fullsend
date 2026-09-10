@@ -10,7 +10,7 @@ for the RHDH fullsend setup.
 | GCP project ID | `rhdh-sidekick-167988` |
 | GCP project number | `189673402608` |
 | Vertex AI region | `us-east5` |
-| WIF pools | `fullsend-pool`, `fullsend-inference` (both ACTIVE) |
+| WIF pool | `fullsend-inference` (ACTIVE) |
 | IAM admin group | `rhdh-sidekick@redhat.com` |
 | Project role | **Owner** (via `group:rhdh-sidekick@redhat.com`) |
 
@@ -30,28 +30,10 @@ Bindings were restored on 2026-09-10 using `add-iam-policy-binding`
 to use `add-iam-policy-binding` or read-modify-write with etag checks
 instead of `set-iam-policy`.
 
-## WIF pools and providers
+## WIF pool and providers
 
-Two pools exist. Each repo gets its own OIDC provider scoped via
-`attribute-condition`.
-
-### Pools
-
-| Pool | Providers | Created by |
-|------|-----------|------------|
-| `fullsend-pool` | 3 (manually provisioned) | Team |
-| `fullsend-inference` | ~49 (auto-provisioned) | `fullsend admin install` |
-
-### fullsend-pool providers
-
-| Provider | Repo scope | State |
-|----------|-----------|-------|
-| `gh-redhat-developer-rhdh-agentic` | `redhat-developer/rhdh-agentic` | ACTIVE |
-| `gh-redhat-developer-rhdh-plugins` | `redhat-developer/rhdh-plugins` | ACTIVE |
-| `gh-rhdeveloper-plugin-export` | `redhat-developer/rhdh-plugin-export-overlays` | ACTIVE |
-
-The `fullsend-inference` pool has providers for most `redhat-developer/*`
-and `rhdh-parasol/*` repos. List them with:
+All repos use a single pool (`fullsend-inference`). Each repo gets its own
+OIDC provider scoped via `attribute-condition`. List all providers:
 
 ```bash
 gcloud iam workload-identity-pools providers list \
@@ -59,15 +41,18 @@ gcloud iam workload-identity-pools providers list \
   --project=rhdh-sidekick-167988 --format="table(name.basename(), attributeCondition)"
 ```
 
+A previous `fullsend-pool` (3 manually provisioned providers) was
+consolidated into `fullsend-inference` on 2026-09-10 and deleted.
+
 ### Creating a new WIF provider
 
 ```bash
 PROVIDER_NAME="gh-redhat-developer-<repo>"  # max 32 chars
-PROVIDER_PATH="projects/189673402608/locations/global/workloadIdentityPools/fullsend-pool/providers/${PROVIDER_NAME}"
+PROVIDER_PATH="projects/189673402608/locations/global/workloadIdentityPools/fullsend-inference/providers/${PROVIDER_NAME}"
 
 gcloud iam workload-identity-pools providers create-oidc "$PROVIDER_NAME" \
   --location=global \
-  --workload-identity-pool=fullsend-pool \
+  --workload-identity-pool=fullsend-inference \
   --project=rhdh-sidekick-167988 \
   --issuer-uri=https://token.actions.githubusercontent.com \
   --allowed-audiences="fullsend-mint,https://iam.googleapis.com/${PROVIDER_PATH}" \
@@ -90,14 +75,12 @@ both automatically; manual provider creation must include both.
 
 ### IAM bindings
 
-Both pools have org-level `aiplatform.user` bindings for both orgs:
+Org-level `aiplatform.user` bindings cover all repos in both orgs:
 
-| Pool | Org | Principal set |
-|------|-----|---------------|
-| `fullsend-pool` | `redhat-developer` | `principalSet://.../fullsend-pool/attribute.repository_owner/redhat-developer` |
-| `fullsend-pool` | `rhdh-parasol` | `principalSet://.../fullsend-pool/attribute.repository_owner/rhdh-parasol` |
-| `fullsend-inference` | `redhat-developer` | `principalSet://.../fullsend-inference/attribute.repository_owner/redhat-developer` |
-| `fullsend-inference` | `rhdh-parasol` | `principalSet://.../fullsend-inference/attribute.repository_owner/rhdh-parasol` |
+| Org | Principal set |
+|-----|---------------|
+| `redhat-developer` | `principalSet://.../fullsend-inference/attribute.repository_owner/redhat-developer` |
+| `rhdh-parasol` | `principalSet://.../fullsend-inference/attribute.repository_owner/rhdh-parasol` |
 
 No per-repo IAM binding is needed — the org-level principal sets cover all
 repos automatically.
@@ -236,7 +219,7 @@ all repos under `redhat-developer`):
 ```bash
 gcloud projects add-iam-policy-binding rhdh-sidekick-167988 \
   --role="roles/aiplatform.user" \
-  --member="principalSet://iam.googleapis.com/projects/189673402608/locations/global/workloadIdentityPools/fullsend-pool/attribute.repository_owner/redhat-developer" \
+  --member="principalSet://iam.googleapis.com/projects/189673402608/locations/global/workloadIdentityPools/fullsend-inference/attribute.repository_owner/redhat-developer" \
   --condition=None
 ```
 
@@ -255,7 +238,7 @@ include both:
 ```bash
 gcloud iam workload-identity-pools providers update-oidc <provider-name> \
   --location=global \
-  --workload-identity-pool=fullsend-pool \
+  --workload-identity-pool=fullsend-inference \
   --project=rhdh-sidekick-167988 \
   --allowed-audiences="fullsend-mint,https://iam.googleapis.com/<wif-provider-path>"
 ```
