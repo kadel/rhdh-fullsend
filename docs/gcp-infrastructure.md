@@ -32,20 +32,100 @@ instead of `set-iam-policy`.
 
 ## Model Garden
 
-Models are enabled at the project level via the GCP Model Garden console.
-Once enabled, they are available to all principals with `roles/aiplatform.user`
-— i.e. all ~52 WIF-enabled repos across both orgs.
+The Model Garden (console path: Agent Platform → Models → Model Garden)
+lists models from Google and partner publishers. Google models (129) are
+available by default — no enablement step needed. Partner models require
+per-publisher enablement via a form.
 
-| Model | Status | Verified |
-|-------|--------|----------|
-| Opus 4.6 (`claude-opus-4-6`) | Enabled | 2026-09-10 (triage agent, issue #143) |
-| Sonnet 4.6 (`claude-sonnet-4-6`) | Enabled | — |
-| Haiku 4.6 (`claude-haiku-4-6`) | Enabled | — |
+Once a partner model is enabled, it is available to all principals with
+`roles/aiplatform.user` — i.e. all ~52 WIF-enabled repos across both orgs.
 
-To enable additional models, go to
-[Model Garden](https://console.cloud.google.com/agent-platform/model-garden)
-with Owner credentials and fill in the publisher form (see
-`fullsend-ai/internal-docs/getting-inference.md` for the required fields).
+### Enabled partner models
+
+| Model | Model ID | Status | Verified |
+|-------|----------|--------|----------|
+| Claude Opus 4.6 | `claude-opus-4-6` | Enabled | 2026-09-10 (triage agent, issue #143) |
+| Claude Sonnet 4.6 | `claude-sonnet-4-6` | Enabled | 2026-09-10 (Model Garden console) |
+| Claude Haiku 4.5 | `claude-haiku-4-5` | Enabled | 2026-09-10 (Model Garden console) |
+
+### Per-agent model assignments (rhdh-agentic)
+
+| Agent | Model alias | Resolves to | Rationale |
+|-------|-------------|-------------|-----------|
+| triage | `haiku` | `claude-haiku-4-5` | Fast, cost-efficient for issue classification |
+| review | `sonnet` | `claude-sonnet-4-6` | Quality/cost balance for code reviews |
+| code, fix, grillme | (default) | `claude-opus-4-6` | Maximum capability for code generation |
+
+Configured via `agents[].model` in `.fullsend/config.yaml`
+([per-agent settings](https://fullsend.sh/docs/runtimes#per-agent-runtime-model-and-effort)).
+The aliases resolve through fullsend's pinned alias table — no
+`models.aliases` override needed.
+
+### Available but not enabled (as of 2026-09-10)
+
+**Anthropic** (12 models in garden):
+
+| Model | Model ID |
+|-------|----------|
+| Claude Fable 5.1 | `claude-fable-5-1` |
+| Claude Opus 5 | `claude-opus-5` |
+| Claude Sonnet 5 | `claude-sonnet-5` |
+| Claude Fable 5 | `claude-fable-5` |
+| Claude Opus 4.8 | `claude-opus-4-8` |
+| Claude Opus 4.7 | `claude-opus-4-7` |
+| Claude Opus 4.5 | `claude-opus-4-5` |
+| Claude Sonnet 4.5 | `claude-sonnet-4-5` |
+| Claude Opus 4.1 | `claude-opus-4-1` |
+
+**xAI** (6 models in garden):
+
+| Model | Model ID |
+|-------|----------|
+| Grok 4.6 | `grok-4.6` |
+| Grok 4.3 | `grok-4.3` |
+| Grok 4.20 (Reasoning) | `grok-4.20` |
+| Grok 4.20 (Non-Reasoning) | `grok-4.20` |
+| Grok 4.1 Fast (Reasoning) | `grok-4.1-fast` |
+| Grok 4.1 Fast (Non-Reasoning) | `grok-4.1-fast` |
+
+Other partners: Meta (21), Mistral AI (9), NVIDIA (4), Stability.ai (4),
+and others. See Model Garden console for the full list.
+
+### Google models (no enablement needed)
+
+129 models available by default, including the Gemini family:
+Gemini 3.8 Flash, 3.7 Flash, 3.6 Flash, 3.5 Flash / Flash Lite,
+3.1 Pro Preview, and others.
+
+### How to enable a partner model
+
+Requires Owner credentials on `rhdh-sidekick-167988`.
+
+1. Go to [Model Garden](https://console.cloud.google.com/agent-platform/model-garden?project=rhdh-sidekick-167988)
+2. Click the model card → click **Enable**
+3. Fill in the publisher questionnaire:
+
+   | Field | Value |
+   |-------|-------|
+   | Business name | `Red Hat` |
+   | Business website | `https://www.redhat.com` |
+   | Contact email | `rhdh-sidekick@redhat.com` |
+   | Headquartered | `United States of America` |
+   | Industry | `Telecommunications` |
+   | Intended users | `Internal employees` |
+   | Use cases | `Agentic software development lifecycle (SDLC) automation for enterprise Backstage plugins` |
+   | Additional requirements (AUP) | `No` |
+
+4. Click **Next** → review pricing (usage-based, billed monthly)
+5. Check the **Terms and agreements** checkbox
+6. Click **Agree** → confirmation dialog appears
+
+An enabled model shows **Open in Agent Studio** instead of **Enable** on
+its card. Enablement is instant — no approval queue.
+
+Use a smoke-test issue to confirm end-to-end inference (Model Garden
+enablement alone is necessary but the only reliable test is a real agent
+run through WIF-federated credentials).
 
 Model access cannot be verified via `gcloud` CLI or raw REST calls with
 user credentials — it only works through WIF-federated credentials used by

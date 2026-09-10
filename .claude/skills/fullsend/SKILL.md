@@ -12,6 +12,8 @@ description: |
   version, update the CLI, bump fullsend, or check what version we're on.
   Also use when asked to onboard a new repo, add a repo to the fleet,
   set up fullsend on a repo, or configure WIF for a new repo.
+  Also use when asked to enable a model in the Model Garden, activate
+  a new Claude/Anthropic/Grok model, or check model enablement status.
   Also use when asked about local fullsend setup, RHDH GCP project config,
   or the custom sandbox image.
 ---
@@ -96,6 +98,7 @@ To add a variable, create an env file and wire it via `host_files` in the harnes
 | `onboard <org>/<repo>` | Add a new repo to the fullsend fleet (WIF, variables, secrets, scaffold) |
 | `upgrade [version]` | Upgrade CLI, bump `repos.yaml`, and converge target repos via PRs |
 | `custom-agents` | Guide for building custom standalone agents (scaffold, dispatch, security) |
+| `enable-model` | Enable a partner model in GCP Model Garden (requires browser + Owner creds) |
 | `local-setup` | Guide for running fullsend agents locally on a Mac |
 
 If no arguments are given, display this table and ask which the user wants.
@@ -114,6 +117,7 @@ Parse the first word after `/fullsend` as the subcommand.
 | `debug` | `references/debug.md` |
 | `comment` | `references/comment.md` |
 | `label` | `references/label.md` |
+| `enable-model` | `references/enable-model.md` |
 | `onboard` | `references/onboard.md` |
 | `upgrade` | `references/upgrade.md` |
 | `custom-agents` | `references/custom-agents.md` |
