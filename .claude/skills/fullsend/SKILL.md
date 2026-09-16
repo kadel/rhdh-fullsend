@@ -16,6 +16,8 @@ description: |
   a new Claude/Anthropic/Grok model, or check model enablement status.
   Also use when asked about local fullsend setup, RHDH GCP project config,
   or the custom sandbox image.
+  Also use when asked to audit the fleet, check which repos have fullsend
+  installed, compare managed vs. unmanaged repos, or run fleet-status.
 ---
 
 # /fullsend (RHDH)
@@ -95,6 +97,7 @@ To add a variable, create an env file and wire it via `host_files` in the harnes
 | `debug <#issue> [--repo]` | Run sandbox diagnostics (shortcut for `trigger debug`) |
 | `comment <#issue> <message> [--repo]` | Post a comment on an issue or PR |
 | `label <#issue> <add\|remove> <label> [--repo]` | Add or remove a label on an issue or PR |
+| `fleet-status` | Audit installed vs. managed repos across both orgs |
 | `onboard <org>/<repo>` | Add a new repo to the fullsend fleet (WIF, variables, secrets, scaffold) |
 | `upgrade [version]` | Upgrade CLI, bump `repos.yaml`, and converge target repos via PRs |
 | `custom-agents` | Guide for building custom standalone agents (scaffold, dispatch, security) |
@@ -118,6 +121,7 @@ Parse the first word after `/fullsend` as the subcommand.
 | `comment` | `references/comment.md` |
 | `label` | `references/label.md` |
 | `enable-model` | `references/enable-model.md` |
+| `fleet-status` | `references/fleet-status.md` |
 | `onboard` | `references/onboard.md` |
 | `upgrade` | `references/upgrade.md` |
 | `custom-agents` | `references/custom-agents.md` |
@@ -199,6 +203,27 @@ When a fullsend agent creates a new plugin package (e.g., `boost-common`), CI ty
 | `tsc` | TypeScript compilation | `yarn tsc:full` |
 
 Running `yarn chores` from the workspace root does all of these in one pass.
+
+### Auto-trigger configuration
+
+All auto-triggers are **disabled fleet-wide**. The shim only listens to
+`issue_comment` (for `/fs-*` commands) and `pull_request_target: [labeled, unlabeled]`
+(for intentional label-based triggers like `fullsend` → code, `priority/*` → prioritize).
+
+| Agent | Auto-trigger | Manual trigger |
+|-------|-------------|----------------|
+| triage | Disabled (was: issue opened/edited) | `/fs-triage` |
+| review | Disabled (was: PR opened/synced) | `/fs-review` |
+| fix | Disabled (was: review changes_requested) | `/fs-fix <instruction>` |
+| retro | Disabled (was: PR closed) | `/fs-retro` |
+| code | Label `fullsend` on issue | `/fs-code` |
+| prioritize | Label `priority/*` on issue | `/fs-prioritize` |
+
+To re-enable an auto-trigger, add the corresponding event back to the shim.
+See `/fullsend upgrade` step 6a for the full event-to-agent mapping.
+
+**This is a shim edit — `fullsend repos install` will overwrite it.** See
+`/fullsend upgrade` step 6a for the re-apply procedure.
 
 ### Downloading agent logs
 

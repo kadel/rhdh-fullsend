@@ -16,9 +16,14 @@ defaults:
     - https://raw.githubusercontent.com/fullsend-ai/agents/
 github:
   mint_url: https://mint.fullsend.sh
-  fullsend_ref: v0.41.0
+  fullsend_ref: v0.43.0
   repos:
     - name: redhat-developer/rhdh-agentic
     - name: redhat-developer/rhdh-cli
     - name: redhat-developer/rhdh-plugins
     - name: redhat-developer/rhdh-plugin-export-overlays
+    - name: rhdh-parasol/rhdh
+    - name: rhdh-parasol/rhdh-agentic
+    - name: rhdh-parasol/rhdh-operator
+    - name: rhdh-parasol/rhdh-plugins
+    - name: rhdh-parasol/rhdh-plugin-export-overlays
