@@ -111,6 +111,43 @@ Close this issue if triage succeeds."
 
 Watch the run. If triage succeeds, close the issue.
 
+### 6a. Re-apply shim customizations
+
+`repos install` convergence currently only bumps `uses:` SHA pins in
+`.github/workflows/fullsend.yaml` — it does NOT regenerate the full shim
+from the template. This means shim customizations (event type edits,
+`if:` condition changes) survive `repos install`. However, template
+improvements (like the v0.43.0 `/fs-` comment filter) must be applied
+manually. A future fullsend version may change convergence behavior to
+do full template rewrites — do not rely on this.
+
+After the scaffold PR is created, check each repo for shim customizations
+that need re-applying. Current fleet customizations:
+
+| Repo | Customization | What to edit |
+|------|---------------|--------------|
+| All 9 managed repos | All auto-triggers disabled | Remove `issues` event, remove `closed` from `pull_request_target.types`, remove `pull_request_review` event. Keep only `issue_comment` and `pull_request_target: [labeled, unlabeled]` |
+| redhat-developer/rhdh-plugins | Above + workspace path filter | Additionally keep `paths:` (boost, scorecard, ai-integrations) on `pull_request_target` |
+
+To re-apply after a scaffold PR lands:
+
+```bash
+# In the scaffold PR branch, edit the shim:
+# pull_request_target.types: [closed, labeled, unlabeled]
+# (remove: opened, synchronize, ready_for_review)
+```
+
+Update the header comment to flag the customization:
+```yaml
+# Based on fullsend scaffold; customized to disable review auto-trigger.
+```
+
+**Why no config-based approach:** Built-in agents (triage, code, review, fix,
+retro, prioritize) use hardcoded stage routing in the dispatch script. CEL
+triggers only work for custom agents. The `roles:` list controls whether an
+agent can run at all — there is no per-role auto-trigger toggle. The only
+existing per-PR opt-out is `fullsend-no-fix` (label-based, hardcoded).
+
 ## Known gotchas
 
 1. **Public mint.** Manifest `mint_url` must stay `https://mint.fullsend.sh`.
@@ -123,3 +160,7 @@ Watch the run. If triage succeeds, close the issue.
 4. **Workflow files need `workflows` token scope.** The fs-code agent cannot
    push `.github/workflows/` — that is why upgrades go through `repos install` PRs.
 5. **Do not `--direct`.** All scaffold and manifest changes land as PRs.
+6. **Shim customizations need monitoring.** See step 6a — current convergence
+   only bumps SHA pins (customizations survive), but this may change. Keep a
+   checklist of per-repo edits and verify after each upgrade. Also manually
+   apply upstream template improvements (e.g. new `if:` guards).

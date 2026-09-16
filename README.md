@@ -12,6 +12,44 @@ skill for the RHDH team's agent infrastructure.
 | **Deployment docs** | GCP setup, repo onboarding, sandbox networking, known issues |
 | **`/fullsend` skill** | RHDH-specific Claude Code skill for validating configs, debugging sandboxes, and building custom agents |
 
+## Fleet status
+
+**Fullsend version:** v0.43.0 | **Mint:** `mint.fullsend.sh` (public) | **GCP project:** `rhdh-sidekick-167988` | **WIF pool:** `fullsend-inference`
+
+### Managed repos (`repos.yaml`)
+
+| Repo | Shim customizations |
+|------|---------------------|
+| `redhat-developer/rhdh-agentic` | All auto-triggers off |
+| `redhat-developer/rhdh-cli` | All auto-triggers off |
+| `redhat-developer/rhdh-plugins` | All auto-triggers off, workspace `paths:` filter (boost, scorecard, ai-integrations) |
+| `redhat-developer/rhdh-plugin-export-overlays` | All auto-triggers off |
+| `rhdh-parasol/rhdh` | All auto-triggers off |
+| `rhdh-parasol/rhdh-agentic` | All auto-triggers off |
+| `rhdh-parasol/rhdh-operator` | All auto-triggers off |
+| `rhdh-parasol/rhdh-plugins` | All auto-triggers off |
+| `rhdh-parasol/rhdh-plugin-export-overlays` | All auto-triggers off |
+
+### Agents
+
+All event-based auto-triggers are disabled. Agents run on-demand via `/fs-*` commands or label-based triggers only.
+
+| Agent | Auto-trigger | Manual trigger |
+|-------|-------------|----------------|
+| Triage | **Disabled** | `/fs-triage` |
+| Review | **Disabled** | `/fs-review` |
+| Fix | **Disabled** | `/fs-fix <instruction>` |
+| Retro | **Disabled** | `/fs-retro` |
+| Code | Label `fullsend` on issue | `/fs-code` |
+| Prioritize | Label `priority/*` on issue | `/fs-prioritize` |
+
+### Unmanaged repos
+
+~49 additional repos across `redhat-developer` and `rhdh-parasol` have
+`.fullsend/config.yaml` from `fullsend admin install` but are **not** in
+`repos.yaml`. They run fullsend independently and don't receive fleet
+upgrades. Run `/fullsend fleet-status` to see the full list.
+
 ## Getting started
 
 New to fullsend? Start here:
@@ -36,10 +74,11 @@ surfaces all of this repo's knowledge interactively. Available commands:
 |---------|-------------|
 | `/fullsend validate` | Diff customized harness/env files against upstream scaffold |
 | `/fullsend debug <#issue>` | Run sandbox diagnostics |
-| `/fullsend comment <#issue> <msg>` | Post a comment on an issue or PR |
-| `/fullsend label <#issue> <add\|remove> <label>` | Manage issue labels |
+| `/fullsend fleet-status` | Audit installed vs. managed repos across both orgs |
+| `/fullsend onboard <org>/<repo>` | Add a new repo to the fleet (WIF, secrets, scaffold) |
 | `/fullsend upgrade [version]` | Upgrade CLI, scaffold files, and dispatch workflows |
 | `/fullsend custom-agents` | Guide for building custom standalone agents |
+| `/fullsend enable-model` | Enable a model in GCP Model Garden |
 | `/fullsend local-setup` | Local agent run setup for Mac |
 
 ## Image
