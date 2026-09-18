@@ -4,13 +4,17 @@ version: 1
 # Sandbox policy for the code agent.
 #
 # forked-from: fullsend v0.17.0 scaffold
-# last-synced: 2026-06-16
+# last-synced: 2026-09-18
 # Based on upstream code policy with additions:
 #   - repo.yarnpkg.com endpoint in package_registries (corepack downloads
 #     yarn binary from repo.yarnpkg.com, not registry.yarnpkg.com)
 #   - corepack binary in package_registries
 #   - allow_encoded_slash on registry.npmjs.org (yarn scoped packages use
 #     @scope%2Fpkg URLs; without this the L7 proxy rejects and retries)
+#   - claude.exe binary in vertex_ai (Claude Code 2.1+ ships the bun
+#     compile as claude.exe; **/claude does not match it, which breaks
+#     Vertex STS auth). Landed directly in consuming repos ahead of this
+#     blueprint (rule-1 violation) — backfilling here to re-sync.
 #
 # Grants network access the code agent needs beyond the base sandbox:
 #   - Vertex AI (global inference + GCP auth token exchange)
@@ -47,6 +51,8 @@ network_policies:
         access: read-write
     binaries:
       - path: "**/claude"
+      # Claude Code 2.1+ ships the bun compile as claude.exe; **/claude does not match it.
+      - path: "**/claude.exe"
       - path: "**/node"
 
   github_api:
