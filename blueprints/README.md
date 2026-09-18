@@ -11,7 +11,7 @@ propagate to each consuming repo.
 | `scripts/pre-fix-rebase.sh` | yes | yes | yes |
 | `env/rhdh-toolchain.env` | yes | - | yes |
 | `env/yarn-proxy.env` | yes | - | yes |
-| `policies/code.yaml` | yes | - | yes |
+| `policies/code.yaml` | no (retired, inherits upstream `profiles/fullsend-vertex-ai.yaml` — rhdh-plugins#4843) | - | yes |
 
 ## How to sync
 
