@@ -24,6 +24,7 @@ skill for the RHDH team's agent infrastructure.
 | `redhat-developer/rhdh-cli` | All auto-triggers off |
 | `redhat-developer/rhdh-plugins` | All auto-triggers off, workspace `paths:` filter (boost, scorecard, ai-integrations) |
 | `redhat-developer/rhdh-plugin-export-overlays` | All auto-triggers off |
+| `redhat-developer/rhdh-skills` | All auto-triggers off |
 | `rhdh-parasol/rhdh` | All auto-triggers off |
 | `rhdh-parasol/rhdh-agentic` | All auto-triggers off |
 | `rhdh-parasol/rhdh-operator` | All auto-triggers off |
@@ -45,7 +46,7 @@ All event-based auto-triggers are disabled. Agents run on-demand via `/fs-*` com
 
 ### Unmanaged repos
 
-~49 additional repos across `redhat-developer` and `rhdh-parasol` have
+~48 additional repos across `redhat-developer` and `rhdh-parasol` have
 `.fullsend/config.yaml` from `fullsend admin install` but are **not** in
 `repos.yaml`. They run fullsend independently and don't receive fleet
 upgrades. Run `/fullsend fleet-status` to see the full list.
