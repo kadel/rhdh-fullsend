@@ -137,48 +137,19 @@ that need re-applying. Current fleet customizations:
 | All 10 managed repos | All auto-triggers disabled | Remove `issues` event, remove `closed` from `pull_request_target.types`, remove `pull_request_review` event. Keep only `issue_comment` and `pull_request_target: [labeled, unlabeled]` |
 | redhat-developer/rhdh-plugins | Above + workspace path filter | Additionally keep `paths:` (boost, scorecard, ai-integrations) on `pull_request_target` |
 
-To re-apply, commit onto the scaffold PR branch before merging. The
-regenerated `on:` block looks like this:
+To re-apply, commit onto the scaffold PR branch before merging. In the
+regenerated shim, delete the `issues` and `pull_request_review` event
+blocks entirely, and cut `pull_request_target.types` down to `labeled`
+and `unlabeled` (the template emits `opened`, `synchronize`,
+`ready_for_review`, and `closed` alongside them). With
+`pull_request_review` gone, drop its clause from the dispatch `if:` so
+the scaffold-branch guard tests `pull_request_target` alone.
 
-```yaml
-on:
-  issues:
-    types: [opened, edited, labeled]
-  issue_comment:
-    types: [created]
-  pull_request_target:
-    types: [opened, synchronize, ready_for_review, closed, labeled, unlabeled]
-  pull_request_review:
-    types: [submitted]
-```
-
-Trim it back to:
-
-```yaml
-on:
-  issue_comment:
-    types: [created]
-  pull_request_target:
-    types: [labeled, unlabeled]
-```
-
-Then drop the now-dead `pull_request_review` branch from the dispatch `if:`:
-
-```yaml
-    if: >-
-      (github.event_name != 'pull_request_target'
-       || github.event.pull_request.head.ref != 'fullsend/scaffold-install')
-```
-
-And restore the header comment, which convergence replaces with
-`# This file is managed by fullsend. Do not edit it directly.`:
-
-```yaml
-# Based on fullsend scaffold; customized to disable all agent auto-triggers.
-# Only label-based triggers and /fs-* slash commands remain active.
-# `fullsend repos install` regenerates this file from the template and restores
-# the auto-trigger events — re-apply this customization after every upgrade.
-```
+Convergence also replaces the header comment with the generic "managed
+by fullsend, do not edit" boilerplate. Restore a header that states the
+customization — auto-triggers disabled, only label triggers and `/fs-*`
+commands active — and that warns the next person this file is rewritten
+on every `repos install`.
 
 **Why no config-based approach:** Built-in agents (triage, code, review, fix,
 retro, prioritize) use hardcoded stage routing in the dispatch script. CEL
