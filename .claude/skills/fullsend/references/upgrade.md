@@ -137,19 +137,23 @@ that need re-applying. Current fleet customizations:
 | All 10 managed repos | All auto-triggers disabled | Remove `issues` event, remove `closed` from `pull_request_target.types`, remove `pull_request_review` event. Keep only `issue_comment` and `pull_request_target: [labeled, unlabeled]` |
 | redhat-developer/rhdh-plugins | Above + workspace path filter | Additionally keep `paths:` (boost, scorecard, ai-integrations) on `pull_request_target` |
 
-To re-apply, commit onto the scaffold PR branch before merging. In the
-regenerated shim, delete the `issues` and `pull_request_review` event
-blocks entirely, and cut `pull_request_target.types` down to `labeled`
-and `unlabeled` (the template emits `opened`, `synchronize`,
-`ready_for_review`, and `closed` alongside them). With
-`pull_request_review` gone, drop its clause from the dispatch `if:` so
-the scaffold-branch guard tests `pull_request_target` alone.
+To re-apply after a scaffold PR lands:
 
-Convergence also replaces the header comment with the generic "managed
-by fullsend, do not edit" boilerplate. Restore a header that states the
-customization — auto-triggers disabled, only label triggers and `/fs-*`
-commands active — and that warns the next person this file is rewritten
-on every `repos install`.
+```bash
+# In the scaffold PR branch, edit the shim:
+# pull_request_target.types: [labeled, unlabeled]
+# (remove: opened, synchronize, ready_for_review, closed)
+# remove the issues and pull_request_review event blocks entirely
+# drop the pull_request_review clause from the dispatch if:
+```
+
+Update the header comment to flag the customization:
+```yaml
+# Based on fullsend scaffold; customized to disable all agent auto-triggers.
+# Only label-based triggers and /fs-* slash commands remain active.
+# `fullsend repos install` regenerates this file and restores the
+# auto-trigger events — re-apply after every upgrade.
+```
 
 **Why no config-based approach:** Built-in agents (triage, code, review, fix,
 retro, prioritize) use hardcoded stage routing in the dispatch script. CEL
