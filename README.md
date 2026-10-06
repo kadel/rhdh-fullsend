@@ -23,7 +23,7 @@ skill for the RHDH team's agent infrastructure.
 | `redhat-developer/rhdh-agentic` | All auto-triggers off |
 | `redhat-developer/rhdh-cli` | All auto-triggers off |
 | `redhat-developer/rhdh-plugins` | All auto-triggers off, workspace `paths:` filter (boost, scorecard, ai-integrations) |
-| `redhat-developer/rhdh-plugin-export-overlays` | All auto-triggers off |
+| `redhat-developer/rhdh-plugin-export-overlays` | All auto-triggers off except `issues: [labeled]` (E2E triage + coder, #3823) |
 | `redhat-developer/rhdh-skills` | All auto-triggers off |
 | `rhdh-parasol/rhdh` | All auto-triggers off |
 | `rhdh-parasol/rhdh-agentic` | All auto-triggers off |

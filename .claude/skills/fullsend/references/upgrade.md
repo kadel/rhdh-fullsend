@@ -134,8 +134,9 @@ that need re-applying. Current fleet customizations:
 
 | Repo | Customization | What to edit |
 |------|---------------|--------------|
-| All 10 managed repos | All auto-triggers disabled | Remove `issues` event, remove `closed` from `pull_request_target.types`, remove `pull_request_review` event. Keep only `issue_comment` and `pull_request_target: [labeled, unlabeled]` |
-| redhat-developer/rhdh-plugins | Above + workspace path filter | Additionally keep `paths:` (boost, scorecard, ai-integrations) on `pull_request_target` |
+| All 10 managed repos (baseline) | All auto-triggers disabled | Keep only `issue_comment: [created]` and `pull_request_target: [labeled, unlabeled]`. Remove the `issues` and `pull_request_review` blocks and the extra `pull_request_target` types |
+| redhat-developer/rhdh-plugins | Baseline + workspace path filter | Additionally restore `paths:` (boost, scorecard, ai-integrations) on `pull_request_target` |
+| redhat-developer/rhdh-plugin-export-overlays | Baseline, with one trigger kept | Restore `issues: [labeled]` — E2E triage and the coder run on labels (#3823). This is the one managed repo that is not fully auto-trigger-free; dropping the block breaks both |
 
 To re-apply after a scaffold PR lands:
 
