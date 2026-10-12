@@ -1,5 +1,7 @@
 # rhdh-fullsend
 
+[![Fullsend Fleet Status](https://github.com/redhat-developer/rhdh-fullsend/actions/workflows/fleet-status.yml/badge.svg?branch=main)](https://github.com/redhat-developer/rhdh-fullsend/actions/workflows/fleet-status.yml?query=branch%3Amain)
+
 Custom sandbox images, deployment documentation, and the `/fullsend` Claude Code
 skill for the RHDH team's agent infrastructure.
 
@@ -29,6 +31,71 @@ skill for the RHDH team's agent infrastructure.
 | `rhdh-parasol/rhdh-operator` | All auto-triggers off |
 | `rhdh-parasol/rhdh-plugins` | All auto-triggers off |
 | `rhdh-parasol/rhdh-plugin-export-overlays` | All auto-triggers off |
+
+### Automated verification
+
+The **Fullsend Fleet Status** workflow checks every repository in `repos.yaml`
+after each push to `main`, including merged PRs, regardless of GitHub organization.
+It installs the fullsend CLI
+version specified by `github.fullsend_ref` and checks each target repository's
+default branch. “Up to date” means matching the manifest version.
+
+Version drift, missing installations or version pins, API errors, and incomplete
+or invalid reports fail the workflow. Other configuration drift produces warnings,
+including the fleet's intentional workflow customizations. The job summary lists
+the results; each `fullsend-fleet-status-<organization>` artifact contains the raw JSON, CLI
+diagnostics, exit code, and Markdown report. Verification does not change target
+repositories or create PRs or comments.
+
+Configure the existing GitHub App before running the workflow:
+
+- Install it in every manifest organization and on all managed repositories, with **Contents**,
+  **Variables**, and **Secrets** repository permissions set to **Read-only**
+  (plus the automatic Metadata permission). Only secret metadata is read.
+- Set this repository's Actions variable `FULLSEND_FLEET_APP_ID` to the App ID.
+- Set its Actions secret `FULLSEND_FLEET_APP_PRIVATE_KEY` to the App's PEM key.
+
+The workflow creates a job and installation token for each organization, scoped
+to its repositories in the manifest. An organization failure does not cancel the
+other checks. Adding a repository also requires granting the App access to it.
+To recheck after
+merging upgrades in target repositories, open **Actions → Fullsend Fleet Status →
+Run workflow** on `main`.
+
+On a fork, configure the App variable and secret in that fork. GitHub requires
+the workflow file on the fork's default branch before **Run workflow** becomes
+available; you can then select another branch from the dropdown.
+
+To validate changes locally with Node.js 24 or newer:
+
+```bash
+npm ci --ignore-scripts
+npm run typecheck
+npm test
+actionlint .github/workflows/fleet-status.yml
+```
+
+To check the full fleet locally, authenticate with `gh`, install the fullsend
+version pinned in `repos.yaml`, and run the same script as CI:
+
+```bash
+npm ci --ignore-scripts # Once, and after dependency updates
+node scripts/fleet-status.ts
+```
+
+Node.js runs the TypeScript script directly using its native type stripping,
+with no compilation step. npm installs the pinned YAML parser. You can also run
+the check with `npm run fleet:status`.
+
+The script runs fullsend, captures its output, prints the status, and writes `fleet-report/summary.md`
+plus the raw diagnostics. It exits with code 0 for a passing check (including
+configuration warnings) or 1 for a failed check. It uses your GitHub credentials
+and includes all manifest organizations by default. CI calls the same script
+with `--owner` to check each organization using its own App token.
+
+Use `--fullsend /path/to/fullsend` to select a CLI binary,
+`--manifest /path/to/repos.yaml` to select a manifest, or `--output-dir /path/to/report`
+to change the report directory. These options follow the script path in the command.
 
 ### Agents
 
