@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feat/fullsend-fleet-status
   workflow_dispatch: {}
 
 permissions:
