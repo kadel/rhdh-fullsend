@@ -1,7 +1,7 @@
 # rhdh-fullsend
 
-[![Fullsend Fleet Status - redhat-developer](https://github.com/kadel/rhdh-fullsend/actions/workflows/fleet-status-redhat-developer.yml/badge.svg?branch=feat%2Ffullsend-fleet-status)](https://github.com/kadel/rhdh-fullsend/actions/workflows/fleet-status-redhat-developer.yml?query=branch%3Afeat%2Ffullsend-fleet-status)
-[![Fullsend Fleet Status - rhdh-parasol](https://github.com/kadel/rhdh-fullsend/actions/workflows/fleet-status-rhdh-parasol.yml/badge.svg?branch=feat%2Ffullsend-fleet-status)](https://github.com/kadel/rhdh-fullsend/actions/workflows/fleet-status-rhdh-parasol.yml?query=branch%3Afeat%2Ffullsend-fleet-status)
+[![Fullsend Fleet Status - redhat-developer](https://github.com/redhat-developer/rhdh-fullsend/actions/workflows/fleet-status-redhat-developer.yml/badge.svg)](https://github.com/redhat-developer/rhdh-fullsend/actions/workflows/fleet-status-redhat-developer.yml)
+[![Fullsend Fleet Status - rhdh-parasol](https://github.com/redhat-developer/rhdh-fullsend/actions/workflows/fleet-status-rhdh-parasol.yml/badge.svg)](https://github.com/redhat-developer/rhdh-fullsend/actions/workflows/fleet-status-rhdh-parasol.yml)
 
 Custom sandbox images, deployment documentation, and the `/fullsend` Claude Code
 skill for the RHDH team's agent infrastructure.
