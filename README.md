@@ -52,7 +52,7 @@ Configure the existing GitHub App before running the workflow:
 - Install it in every manifest organization and on all managed repositories, with **Contents**,
   **Variables**, and **Secrets** repository permissions set to **Read-only**
   (plus the automatic Metadata permission). Only secret metadata is read.
-- Set this repository's Actions secret `FULLSEND_FLEET_APP_ID` to the App ID.
+- Set this repository's Actions variable `FULLSEND_FLEET_APP_ID` to the App ID.
 - Set its Actions secret `FULLSEND_FLEET_APP_PRIVATE_KEY` to the App's PEM key.
 
 The workflow creates a job and installation token for each organization, scoped
@@ -62,7 +62,7 @@ To recheck after
 merging upgrades in target repositories, open **Actions → Fullsend Fleet Status →
 Run workflow** on `main`.
 
-On a fork, configure both App secrets in that fork. GitHub requires
+On a fork, configure the App variable and secret in that fork. GitHub requires
 the workflow file on the fork's default branch before **Run workflow** becomes
 available; you can then select another branch from the dropdown.
 
