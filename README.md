@@ -1,6 +1,7 @@
 # rhdh-fullsend
 
-[![Fullsend Fleet Status](https://github.com/kadel/rhdh-fullsend/actions/workflows/fleet-status.yml/badge.svg?branch=feat%2Ffullsend-fleet-status)](https://github.com/kadel/rhdh-fullsend/actions/workflows/fleet-status.yml?query=branch%3Afeat%2Ffullsend-fleet-status)
+[![Fullsend Fleet Status - redhat-developer](https://github.com/kadel/rhdh-fullsend/actions/workflows/fleet-status-redhat-developer.yml/badge.svg?branch=feat%2Ffullsend-fleet-status)](https://github.com/kadel/rhdh-fullsend/actions/workflows/fleet-status-redhat-developer.yml?query=branch%3Afeat%2Ffullsend-fleet-status)
+[![Fullsend Fleet Status - rhdh-parasol](https://github.com/kadel/rhdh-fullsend/actions/workflows/fleet-status-rhdh-parasol.yml/badge.svg?branch=feat%2Ffullsend-fleet-status)](https://github.com/kadel/rhdh-fullsend/actions/workflows/fleet-status-rhdh-parasol.yml?query=branch%3Afeat%2Ffullsend-fleet-status)
 
 Custom sandbox images, deployment documentation, and the `/fullsend` Claude Code
 skill for the RHDH team's agent infrastructure.
@@ -34,9 +35,10 @@ skill for the RHDH team's agent infrastructure.
 
 ### Automated verification
 
-The **Fullsend Fleet Status** workflow checks every repository in `repos.yaml`
-after each push to `main`, including merged PRs, regardless of GitHub organization.
-It installs the fullsend CLI
+The **Fullsend Fleet Status - redhat-developer** and **Fullsend Fleet Status -
+rhdh-parasol** workflows each check their organization's repositories in `repos.yaml`
+after each push to `main`, including merged PRs. Each workflow has its own status
+badge, App token, and report, and installs the fullsend CLI
 version specified by `github.fullsend_ref` and checks each target repository's
 default branch. “Up to date” means matching the manifest version.
 
@@ -55,12 +57,12 @@ Configure the existing GitHub App before running the workflow:
 - Set this repository's Actions variable `FULLSEND_FLEET_APP_ID` to the App ID.
 - Set its Actions secret `FULLSEND_FLEET_APP_PRIVATE_KEY` to the App's PEM key.
 
-The workflow creates a job and installation token for each organization, scoped
-to its repositories in the manifest. An organization failure does not cancel the
-other checks. Adding a repository also requires granting the App access to it.
+Each workflow creates an installation token scoped to its organization's
+repositories in the manifest. An organization failure does not affect the other
+workflow. Adding a repository also requires granting the App access to it.
 To recheck after
-merging upgrades in target repositories, open **Actions → Fullsend Fleet Status →
-Run workflow** on `main`.
+merging upgrades in target repositories, select the organization's workflow under
+**Actions**, then choose **Run workflow** on `main`.
 
 On a fork, configure the App variable and secret in that fork. GitHub requires
 the workflow file on the fork's default branch before **Run workflow** becomes
@@ -72,7 +74,7 @@ To validate changes locally with Node.js 24 or newer:
 npm ci --ignore-scripts
 npm run typecheck
 npm test
-actionlint .github/workflows/fleet-status.yml
+actionlint .github/workflows/fleet-status-*.yml
 ```
 
 To check the full fleet locally, authenticate with `gh`, install the fullsend

@@ -242,6 +242,9 @@ export function main({ argv = process.argv.slice(2), env = process.env, log = co
       const output = values['github-output'] ?? env.GITHUB_OUTPUT;
       if (!output) throw new Error('prepare requires --github-output or GITHUB_OUTPUT');
       appendFileSync(output, `version=${ref}\nmatrix=${JSON.stringify(fleetMatrix(repos))}\n`);
+      if (values.owner !== undefined) {
+        appendFileSync(output, `repositories=${repos.map(repo => repo.split('/')[1]).join(',')}\n`);
+      }
       return 0;
     }
     const { result, exitCode } = readStatus(values.fullsend, values.manifest, values.owner, values['output-dir'], runner);

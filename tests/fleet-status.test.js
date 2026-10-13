@@ -222,6 +222,18 @@ test('organization filters affect the CLI and report coverage', t => {
   assert.throws(() => loadFleet(state.manifest, 'unknown-org'));
 });
 
+test('prepare scopes repository outputs to one organization', t => {
+  const state = fixture(t);
+  for (const [owner, names] of [['redhat-developer', 'rhdh-cli,rhdh-plugins'], ['rhdh-parasol', 'rhdh-cli']]) {
+    const output = join(state.root, `${owner}-output`);
+    assert.equal(state.invoke(['prepare', '--owner', owner, '--github-output', output]).exitCode, 0);
+    const content = readFileSync(output, 'utf8');
+    assert.ok(content.includes(`repositories=${names}\n`));
+    assert.ok(content.includes(`version=${REF}\n`));
+  }
+  assert.equal(state.calls.length, 0);
+});
+
 test('other organizations are included without hardcoded names', t => {
   const state = fixture(t);
   writeFileSync(state.manifest, readFileSync(state.manifest, 'utf8').replaceAll('rhdh-parasol', 'another-org'));
