@@ -1,6 +1,6 @@
 # rhdh-fullsend
 
-[![Fullsend Fleet Status](https://github.com/redhat-developer/rhdh-fullsend/actions/workflows/fleet-status.yml/badge.svg?branch=main)](https://github.com/redhat-developer/rhdh-fullsend/actions/workflows/fleet-status.yml?query=branch%3Amain)
+[![Fullsend Fleet Status](https://github.com/kadel/rhdh-fullsend/actions/workflows/fleet-status.yml/badge.svg?branch=feat%2Ffullsend-fleet-status)](https://github.com/kadel/rhdh-fullsend/actions/workflows/fleet-status.yml?query=branch%3Afeat%2Ffullsend-fleet-status)
 
 Custom sandbox images, deployment documentation, and the `/fullsend` Claude Code
 skill for the RHDH team's agent infrastructure.
